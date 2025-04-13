@@ -1,0 +1,68 @@
+services:
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: grafana
+    environment: # All setting are used to disable authentication
+      - "GF_AUTH_DISABLE_LOGIN_FORM=true"
+      - "GF_AUTH_ANONYMOUS_ENABLED=true"
+      - "GF_AUTH_ANONYMOUS_ORG_ROLE=Admin"
+    networks:
+      - monitoring
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana_config/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana_config/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana_dashboards:/var/lib/grafana/dashboards
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: prometheus
+    networks:
+      - monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus_config/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  node_exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: node-exporter
+    networks:
+      - monitoring
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+  loki:
+    image: grafana/loki:3.4.3
+    container_name: loki
+    networks:
+      - monitoring
+    ports:
+      - "3100:3100"
+
+  promtail:
+    image: grafana/promtail:2.9.8
+    container_name: promtail
+    networks:
+      - monitoring
+    ports:
+      - "3200:3200"
+    depends_on:
+      - loki
+    volumes:
+      - /var/log:/var/log
+      - ./promtail_config/promtail.yml:/etc/promtail/config.yml
+
+networks:
+  monitoring:
+    driver: bridge
